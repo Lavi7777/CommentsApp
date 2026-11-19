@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using CommentsApp.Api.Dtos;
+using CommentsApp.Domain.Abstractions;
 using CommentsApp.Domain.Entities;
 using CommentsApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -25,10 +26,12 @@ public class CommentsController : ControllerBase
     };
 
     private readonly AppDbContext _db;
+    private readonly ICommentTextSanitizer _sanitizer;
 
-    public CommentsController(AppDbContext db)
+    public CommentsController(AppDbContext db, ICommentTextSanitizer sanitizer)
     {
         _db = db;
+        _sanitizer = sanitizer;
     }
 
     [HttpGet("count")]
@@ -69,7 +72,6 @@ public class CommentsController : ControllerBase
             .Select(ToDto)
             .ToListAsync();
 
-        // Загружаем ответы уровень за уровнем, пока они не закончатся
         var byId = items.ToDictionary(c => c.Id);
         var currentIds = items.Select(c => c.Id).ToList();
 
@@ -103,6 +105,17 @@ public class CommentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCommentRequest request)
     {
+        var sanitized = _sanitizer.Sanitize(request.Text);
+        if (!sanitized.IsValid)
+        {
+            return BadRequest(new { error = sanitized.Error });
+        }
+
+        if (sanitized.Html.Length > 5000)
+        {
+            return BadRequest(new { error = "Text is too long." });
+        }
+
         if (request.ParentId.HasValue)
         {
             var parentExists = await _db.Comments.AnyAsync(c => c.Id == request.ParentId.Value);
@@ -143,7 +156,7 @@ public class CommentsController : ControllerBase
         var comment = new Comment
         {
             Id = Guid.NewGuid(),
-            Text = request.Text,
+            Text = sanitized.Html,
             CreatedAt = DateTime.UtcNow,
             User = user,
             ParentId = request.ParentId
