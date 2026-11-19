@@ -27,11 +27,16 @@ public class CommentsController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly ICommentTextSanitizer _sanitizer;
+    private readonly ICaptchaService _captcha;
 
-    public CommentsController(AppDbContext db, ICommentTextSanitizer sanitizer)
+    public CommentsController(
+        AppDbContext db,
+        ICommentTextSanitizer sanitizer,
+        ICaptchaService captcha)
     {
         _db = db;
         _sanitizer = sanitizer;
+        _captcha = captcha;
     }
 
     [HttpGet("count")]
@@ -123,6 +128,13 @@ public class CommentsController : ControllerBase
             {
                 return BadRequest(new { error = "Parent comment not found." });
             }
+        }
+
+        // CAPTCHA проверяем последней: код одноразовый, и он не должен
+        // сгорать из-за других ошибок в форме
+        if (!_captcha.Validate(request.CaptchaId, request.CaptchaCode))
+        {
+            return BadRequest(new { error = "Invalid or expired CAPTCHA." });
         }
 
         var userName = request.UserName.Trim();
