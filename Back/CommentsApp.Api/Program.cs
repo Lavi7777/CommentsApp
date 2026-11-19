@@ -1,4 +1,6 @@
+using CommentsApp.Domain.Abstractions;
 using CommentsApp.Infrastructure.Data;
+using CommentsApp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +13,8 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddSingleton<ICommentTextSanitizer, CommentTextSanitizer>();
 
 var app = builder.Build();
 
