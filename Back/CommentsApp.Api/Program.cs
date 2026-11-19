@@ -15,6 +15,10 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICommentTextSanitizer, CommentTextSanitizer>();
 builder.Services.AddSingleton<ICaptchaService, CaptchaService>();
 
+var uploadsPath = builder.Configuration["Uploads:Path"]
+                  ?? Path.Combine(builder.Environment.ContentRootPath, "uploads");
+builder.Services.AddSingleton<IAttachmentStorage>(_ => new AttachmentStorage(uploadsPath));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
