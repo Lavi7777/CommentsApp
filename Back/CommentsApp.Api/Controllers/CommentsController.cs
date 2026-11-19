@@ -22,21 +22,33 @@ public class CommentsController : ControllerBase
         Email = c.User.Email,
         HomePage = c.User.HomePage,
         Text = c.Text,
-        CreatedAt = c.CreatedAt
+        CreatedAt = c.CreatedAt,
+        Attachment = c.Attachment == null
+            ? null
+            : new AttachmentDto
+            {
+                Type = c.Attachment.Type,
+                OriginalFileName = c.Attachment.OriginalFileName,
+                Url = "/uploads/" + c.Attachment.StoredFileName,
+                SizeBytes = c.Attachment.SizeBytes
+            }
     };
 
     private readonly AppDbContext _db;
     private readonly ICommentTextSanitizer _sanitizer;
     private readonly ICaptchaService _captcha;
+    private readonly IAttachmentStorage _storage;
 
     public CommentsController(
         AppDbContext db,
         ICommentTextSanitizer sanitizer,
-        ICaptchaService captcha)
+        ICaptchaService captcha,
+        IAttachmentStorage storage)
     {
         _db = db;
         _sanitizer = sanitizer;
         _captcha = captcha;
+        _storage = storage;
     }
 
     [HttpGet("count")]
@@ -108,7 +120,10 @@ public class CommentsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateCommentRequest request)
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> Create(
+        [FromForm] CreateCommentRequest request,
+        CancellationToken cancellationToken)
     {
         var sanitized = _sanitizer.Sanitize(request.Text);
         if (!sanitized.IsValid)
@@ -123,18 +138,38 @@ public class CommentsController : ControllerBase
 
         if (request.ParentId.HasValue)
         {
-            var parentExists = await _db.Comments.AnyAsync(c => c.Id == request.ParentId.Value);
+            var parentExists = await _db.Comments
+                .AnyAsync(c => c.Id == request.ParentId.Value, cancellationToken);
             if (!parentExists)
             {
                 return BadRequest(new { error = "Parent comment not found." });
             }
         }
 
-        // CAPTCHA проверяем последней: код одноразовый, и он не должен
-        // сгорать из-за других ошибок в форме
+        
         if (!_captcha.Validate(request.CaptchaId, request.CaptchaCode))
         {
             return BadRequest(new { error = "Invalid or expired CAPTCHA." });
+        }
+
+        Attachment? attachment = null;
+        if (request.File is { Length: > 0 })
+        {
+            await using var stream = request.File.OpenReadStream();
+            var saved = await _storage.SaveAsync(stream, request.File.FileName, cancellationToken);
+            if (!saved.IsValid || saved.Attachment is null)
+            {
+                return BadRequest(new { error = saved.Error });
+            }
+
+            attachment = new Attachment
+            {
+                Id = Guid.NewGuid(),
+                Type = saved.Attachment.Type,
+                OriginalFileName = saved.Attachment.OriginalFileName,
+                StoredFileName = saved.Attachment.StoredFileName,
+                SizeBytes = saved.Attachment.SizeBytes
+            };
         }
 
         var userName = request.UserName.Trim();
@@ -148,7 +183,7 @@ public class CommentsController : ControllerBase
         }
 
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.UserName == userName && u.Email == email);
+            .FirstOrDefaultAsync(u => u.UserName == userName && u.Email == email, cancellationToken);
 
         if (user is null)
         {
@@ -171,11 +206,12 @@ public class CommentsController : ControllerBase
             Text = sanitized.Html,
             CreatedAt = DateTime.UtcNow,
             User = user,
-            ParentId = request.ParentId
+            ParentId = request.ParentId,
+            Attachment = attachment
         };
 
         _db.Comments.Add(comment);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         return Ok(new { id = comment.Id });
     }

@@ -31,4 +31,6 @@ public class CreateCommentRequest
     [StringLength(10)]
     [RegularExpression("^[a-zA-Z0-9]+$", ErrorMessage = "Captcha: only Latin letters and digits.")]
     public string CaptchaCode { get; set; } = null!;
+
+    public IFormFile? File { get; set; }
 }
