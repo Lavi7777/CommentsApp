@@ -13,6 +13,7 @@ const MAX_TEXT_FILE_BYTES = 100 * 1024;
   selector: 'app-comment-form',
   imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   templateUrl: './comment-form.html',
+  host: { class: 'block' },
 })
 export class CommentForm {
   private readonly fb = inject(FormBuilder);

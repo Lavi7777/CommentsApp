@@ -12,7 +12,33 @@
     ></div>
   }
 
-  <div class="break-words px-3 py-3 whitespace-pre-line" [innerHTML]="comment().text"></div>
+  <div
+    class="comment-text break-words px-3 py-3 whitespace-pre-line"
+    [innerHTML]="comment().text"
+  ></div>
+
+  @if (comment().attachment; as attachment) {
+    <div class="px-3 pb-3">
+      @if (attachment.type === 'Image') {
+        <img
+          [src]="attachment.url"
+          [alt]="attachment.originalFileName"
+          class="max-h-60 max-w-full cursor-zoom-in rounded border border-gray-300 transition hover:shadow-lg"
+          (click)="openImage(attachment)"
+        />
+      } @else {
+        <a
+          [href]="attachment.url"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center gap-2 rounded border border-gray-300 px-3 py-2 text-sm text-blue-700 hover:bg-slate-50"
+        >
+          {{ attachment.originalFileName }}
+          <span class="text-gray-500">({{ (attachment.sizeBytes / 1024).toFixed(1) }} KB)</span>
+        </a>
+      }
+    </div>
+  }
 
   <div class="px-1">
     <button mat-button type="button" (click)="toggleReply()">

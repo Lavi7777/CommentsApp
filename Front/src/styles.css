@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+.comment-text a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.comment-text code {
+  background-color: #f1f5f9;
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  font-family: ui-monospace, Consolas, monospace;
+}
