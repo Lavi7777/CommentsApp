@@ -1,13 +1,13 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { CommentForm } from './components/comment-form/comment-form';
+import { CommentItem } from './shared/components/comment-item/comment-item';
 import { CommentDto } from './models/comment.model';
 import { CommentsService } from './services/comments.service';
 
 @Component({
   selector: 'app-root',
-  imports: [DatePipe, MatCardModule, MatToolbarModule],
+  imports: [MatToolbarModule, CommentForm, CommentItem],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -19,6 +19,10 @@ export class App {
   protected readonly error = signal<string | null>(null);
 
   constructor() {
+    this.load();
+  }
+
+  protected onCreated(): void {
     this.load();
   }
 
