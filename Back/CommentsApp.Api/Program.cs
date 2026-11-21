@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using CommentsApp.Api.Handlers;
 using CommentsApp.Api.Hubs;
+using CommentsApp.Api.Workers;
 using CommentsApp.Domain.Abstractions;
 using CommentsApp.Domain.Events;
 using CommentsApp.Infrastructure.Data;
@@ -25,10 +26,14 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICommentTextSanitizer, CommentTextSanitizer>();
 builder.Services.AddSingleton<ICaptchaService, CaptchaService>();
 builder.Services.AddSingleton<ICommentsCache, CommentsCache>();
+builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+builder.Services.AddHostedService<BackgroundTaskWorker>();
 
+builder.Services.AddScoped<IAttachmentProcessor, AttachmentProcessor>();
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedCacheInvalidationHandler>();
 builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedBroadcastHandler>();
+builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedAttachmentProcessingHandler>();
 
 var uploadsPath = Path.GetFullPath(
     builder.Configuration["Uploads:Path"]
@@ -52,7 +57,10 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads",
     OnPrepareResponse = ctx =>
-        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
+    {
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        ctx.Context.Response.Headers["Cache-Control"] = "no-cache";
+    }
 });
 
 app.UseAuthorization();

@@ -184,7 +184,9 @@ public class CommentsController : ControllerBase
         _db.Comments.Add(comment);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _events.PublishAsync(new CommentCreatedEvent(comment.Id, comment.ParentId), cancellationToken);
+        await _events.PublishAsync(
+    new CommentCreatedEvent(comment.Id, comment.ParentId, attachment?.Type == AttachmentType.Image),
+    cancellationToken); await _events.PublishAsync(new CommentCreatedEvent(comment.Id, comment.ParentId), cancellationToken);
 
         return Ok(new { id = comment.Id });
     }

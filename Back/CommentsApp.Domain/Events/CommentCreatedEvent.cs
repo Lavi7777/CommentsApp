@@ -2,4 +2,7 @@
 
 namespace CommentsApp.Domain.Events;
 
-public record CommentCreatedEvent(Guid CommentId, Guid? ParentId) : IDomainEvent;
+public record CommentCreatedEvent(
+    Guid CommentId,
+    Guid? ParentId,
+    bool HasImageAttachment = false) : IDomainEvent;

@@ -8,4 +8,8 @@ public interface IAttachmentStorage
         Stream content,
         string originalFileName,
         CancellationToken cancellationToken = default);
+
+    Task<long?> OptimizeImageAsync(
+        string storedFileName,
+        CancellationToken cancellationToken = default);
 }
