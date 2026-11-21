@@ -1,0 +1,37 @@
+<mat-toolbar>
+  <span>Comments ({{ totalCount() }})</span>
+</mat-toolbar>
+
+<main class="mx-auto max-w-4xl space-y-4 p-4">
+  <app-comment-form (created)="onCreated()" />
+
+  @if (error()) {
+    <p class="text-red-600">{{ error() }}</p>
+  }
+
+  <section class="space-y-4 rounded-xl bg-white p-4 shadow">
+    <app-sort-header
+      [options]="sortOptions"
+      [sortBy]="sortBy()"
+      [desc]="desc()"
+      (changed)="onSortChanged($event)"
+    />
+
+    <div class="space-y-6">
+      @for (comment of comments(); track comment.id) {
+        <app-comment-item [comment]="comment" (created)="onCreated()" />
+      }
+    </div>
+
+    @if (totalCount() > pageSize) {
+      <mat-paginator
+        [length]="totalCount()"
+        [pageSize]="pageSize"
+        [pageIndex]="page() - 1"
+        [hidePageSize]="true"
+        [showFirstLastButtons]="true"
+        (page)="onPage($event)"
+      />
+    }
+  </section>
+</main>

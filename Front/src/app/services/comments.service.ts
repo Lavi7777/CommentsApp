@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { CaptchaDto } from '../models/captcha.model';
 import { CommentDto, PagedResult } from '../models/comment.model';
 
 @Injectable({ providedIn: 'root' })
@@ -11,5 +12,13 @@ export class CommentsService {
     return this.http.get<PagedResult<CommentDto>>('/api/comments', {
       params: { page, sortBy, desc },
     });
+  }
+
+  getCaptcha(): Observable<CaptchaDto> {
+    return this.http.get<CaptchaDto>('/api/captcha');
+  }
+
+  create(data: FormData): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>('/api/comments', data);
   }
 }

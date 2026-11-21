@@ -1,0 +1,9 @@
+<div class="flex flex-col items-center gap-3 p-4">
+  <img
+    [src]="data.url"
+    [alt]="data.title"
+    class="max-h-[75vh] max-w-full rounded shadow-lg"
+  />
+  <p class="text-sm text-gray-600">{{ data.title }}</p>
+  <button mat-flat-button type="button" mat-dialog-close>Close</button>
+</div>
