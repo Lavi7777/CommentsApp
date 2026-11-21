@@ -1,7 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { CommentDto } from '../../models/comment.model';
+import { CommentsHubService } from '../../services/comments-hub.service';
 import { CommentsService } from '../../services/comments.service';
 import { SortHeader, SortOption, SortState } from '../../shared/components/sort-header/sort-header';
 import { CommentForm } from '../comment-form/comment-form';
@@ -14,6 +16,7 @@ import { CommentItem } from '../../shared/components/comment-item/comment-item';
 })
 export class CommentsPage {
   private readonly commentsService = inject(CommentsService);
+  private readonly hub = inject(CommentsHubService);
 
   protected readonly pageSize = 25;
   protected readonly sortOptions: SortOption[] = [
@@ -31,6 +34,8 @@ export class CommentsPage {
 
   constructor() {
     this.load();
+    this.hub.start();
+    this.hub.commentCreated$.pipe(takeUntilDestroyed()).subscribe(() => this.load());
   }
 
   protected onCreated(): void {

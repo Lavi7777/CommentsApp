@@ -1,6 +1,10 @@
 using System.Text.Json.Serialization;
+using CommentsApp.Api.Handlers;
+using CommentsApp.Api.Hubs;
 using CommentsApp.Domain.Abstractions;
+using CommentsApp.Domain.Events;
 using CommentsApp.Infrastructure.Data;
+using CommentsApp.Infrastructure.Events;
 using CommentsApp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -11,6 +15,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
@@ -18,6 +23,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICommentTextSanitizer, CommentTextSanitizer>();
 builder.Services.AddSingleton<ICaptchaService, CaptchaService>();
+
+builder.Services.AddScoped<IEventPublisher, EventPublisher>();
+builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedBroadcastHandler>();
 
 var uploadsPath = Path.GetFullPath(
     builder.Configuration["Uploads:Path"]
@@ -46,5 +54,6 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<CommentsHub>("/hubs/comments");
 
 app.Run();
