@@ -2,6 +2,7 @@
 using CommentsApp.Api.Dtos;
 using CommentsApp.Domain.Abstractions;
 using CommentsApp.Domain.Entities;
+using CommentsApp.Domain.Events;
 using CommentsApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -38,17 +39,20 @@ public class CommentsController : ControllerBase
     private readonly ICommentTextSanitizer _sanitizer;
     private readonly ICaptchaService _captcha;
     private readonly IAttachmentStorage _storage;
+    private readonly IEventPublisher _events;
 
     public CommentsController(
         AppDbContext db,
         ICommentTextSanitizer sanitizer,
         ICaptchaService captcha,
-        IAttachmentStorage storage)
+        IAttachmentStorage storage,
+        IEventPublisher events)
     {
         _db = db;
         _sanitizer = sanitizer;
         _captcha = captcha;
         _storage = storage;
+        _events = events;
     }
 
     [HttpGet("count")]
@@ -146,7 +150,6 @@ public class CommentsController : ControllerBase
             }
         }
 
-        
         if (!_captcha.Validate(request.CaptchaId, request.CaptchaCode))
         {
             return BadRequest(new { error = "Invalid or expired CAPTCHA." });
@@ -212,6 +215,8 @@ public class CommentsController : ControllerBase
 
         _db.Comments.Add(comment);
         await _db.SaveChangesAsync(cancellationToken);
+
+        await _events.PublishAsync(new CommentCreatedEvent(comment.Id, comment.ParentId), cancellationToken);
 
         return Ok(new { id = comment.Id });
     }
