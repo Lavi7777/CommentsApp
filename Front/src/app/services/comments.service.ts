@@ -21,4 +21,8 @@ export class CommentsService {
   create(data: FormData): Observable<{ id: string }> {
     return this.http.post<{ id: string }>('/api/comments', data);
   }
+
+  preview(text: string): Observable<{ html: string }> {
+    return this.http.post<{ html: string }>('/api/preview', { text });
+  }
 }

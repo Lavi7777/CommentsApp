@@ -5,13 +5,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { CommentsService } from '../../services/comments.service';
+import { TagToolbar } from '../../shared/components/tag-toolbar/tag-toolbar';
+import { FormatTag, wrapSelection } from '../../shared/utils/wrap-selection';
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif'];
 const MAX_TEXT_FILE_BYTES = 100 * 1024;
 
 @Component({
   selector: 'app-comment-form',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, TagToolbar],
   templateUrl: './comment-form.html',
   host: { class: 'block' },
 })
@@ -19,6 +21,7 @@ export class CommentForm {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(CommentsService);
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  private readonly textArea = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
 
   readonly parentId = input<string | null>(null);
   readonly created = output<void>();
@@ -27,6 +30,9 @@ export class CommentForm {
   protected readonly submitting = signal(false);
   protected readonly serverError = signal<string | null>(null);
   protected readonly fileError = signal<string | null>(null);
+  protected readonly previewHtml = signal<string | null>(null);
+  protected readonly previewError = signal<string | null>(null);
+  protected readonly previewing = signal(false);
 
   private captchaId = '';
   private selectedFile: File | null = null;
@@ -56,6 +62,46 @@ export class CommentForm {
         this.captchaImage.set(captcha.image);
       },
       error: () => this.serverError.set('Failed to load CAPTCHA.'),
+    });
+  }
+
+  protected insertTag(tag: FormatTag): void {
+    const element = this.textArea()?.nativeElement;
+    if (!element) {
+      return;
+    }
+
+    const result = wrapSelection(
+      this.form.controls.text.value,
+      element.selectionStart,
+      element.selectionEnd,
+      tag,
+    );
+
+    this.form.controls.text.setValue(result.value);
+    element.focus();
+    element.setSelectionRange(result.selectionStart, result.selectionEnd);
+  }
+
+  protected preview(): void {
+    const text = this.form.controls.text.value;
+    if (!text.trim()) {
+      return;
+    }
+
+    this.previewing.set(true);
+    this.previewError.set(null);
+
+    this.service.preview(text).subscribe({
+      next: (result) => {
+        this.previewing.set(false);
+        this.previewHtml.set(result.html);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.previewing.set(false);
+        this.previewHtml.set(null);
+        this.previewError.set(this.extractError(error));
+      },
     });
   }
 
@@ -118,6 +164,8 @@ export class CommentForm {
         this.submitting.set(false);
         this.form.controls.text.reset();
         this.form.controls.captchaCode.reset();
+        this.previewHtml.set(null);
+        this.previewError.set(null);
         this.clearFile();
         this.loadCaptcha();
         this.created.emit();
