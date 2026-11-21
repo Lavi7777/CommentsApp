@@ -1,7 +1,8 @@
 <article>
-  <div class="flex items-center gap-3 rounded bg-slate-100 px-3 py-2">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-slate-100 px-3 py-2">
     <app-user-avatar [name]="comment().userName" />
     <span class="font-semibold">{{ comment().userName }}</span>
+    <span class="text-xs text-gray-500">{{ comment().email }}</span>
     <span class="text-xs text-gray-500">{{ comment().createdAt | commentDate }}</span>
   </div>
 
@@ -34,7 +35,7 @@
           class="inline-flex items-center gap-2 rounded border border-gray-300 px-3 py-2 text-sm text-blue-700 hover:bg-slate-50"
         >
           {{ attachment.originalFileName }}
-          <span class="text-gray-500">({{ (attachment.sizeBytes / 1024).toFixed(1) }} KB)</span>
+          <span class="text-gray-500">({{ attachment.sizeBytes | fileSize }})</span>
         </a>
       }
     </div>

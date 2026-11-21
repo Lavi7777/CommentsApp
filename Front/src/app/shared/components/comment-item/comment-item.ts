@@ -5,11 +5,12 @@ import { AttachmentDto, CommentDto } from '../../../models/comment.model';
 import { ImageLightbox } from '../image-lightbox/image-lightbox';
 import { UserAvatar } from '../user-avatar/user-avatar';
 import { CommentDatePipe } from '../../pipes/comment-date-pipe';
+import { FileSizePipe } from '../../pipes/file-size-pipe';
 import { CommentForm } from '../../../components/comment-form/comment-form';
 
 @Component({
   selector: 'app-comment-item',
-  imports: [MatButtonModule, CommentForm, UserAvatar, CommentDatePipe],
+  imports: [MatButtonModule, CommentForm, UserAvatar, CommentDatePipe, FileSizePipe],
   templateUrl: './comment-item.html',
   host: { class: 'block' },
 })
