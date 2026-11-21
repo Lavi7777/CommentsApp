@@ -36,6 +36,7 @@ export class CommentsPage {
     this.load();
     this.hub.start();
     this.hub.commentCreated$.pipe(takeUntilDestroyed()).subscribe(() => this.load());
+    this.hub.reconnected$.pipe(takeUntilDestroyed()).subscribe(() => this.load());
   }
 
   protected onCreated(): void {
