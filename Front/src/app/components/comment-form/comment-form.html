@@ -48,7 +48,13 @@
       rows="5"
       maxlength="5000"
     ></textarea>
-    <mat-error>Text is required</mat-error>
+    <mat-error>
+      @if (form.controls.text.hasError('required')) {
+        Text is required
+      } @else {
+        {{ form.controls.text.errors?.['htmlTags'] }}
+      }
+    </mat-error>
   </mat-form-field>
 
   @if (previewHtml() !== null) {
