@@ -14,6 +14,7 @@ namespace CommentsApp.Api.Controllers;
 public class CommentsController : ControllerBase
 {
     private const int PageSize = 25;
+    private const int MaxCachedPage = 10;
 
     private static readonly Expression<Func<Comment, CommentDto>> ToDto = c => new CommentDto
     {
@@ -40,19 +41,22 @@ public class CommentsController : ControllerBase
     private readonly ICaptchaService _captcha;
     private readonly IAttachmentStorage _storage;
     private readonly IEventPublisher _events;
+    private readonly ICommentsCache _cache;
 
     public CommentsController(
         AppDbContext db,
         ICommentTextSanitizer sanitizer,
         ICaptchaService captcha,
         IAttachmentStorage storage,
-        IEventPublisher events)
+        IEventPublisher events,
+        ICommentsCache cache)
     {
         _db = db;
         _sanitizer = sanitizer;
         _captcha = captcha;
         _storage = storage;
         _events = events;
+        _cache = cache;
     }
 
     [HttpGet("count")]
@@ -73,54 +77,18 @@ public class CommentsController : ControllerBase
             page = 1;
         }
 
-        var topLevel = _db.Comments.AsNoTracking().Where(c => c.ParentId == null);
-        var totalCount = await topLevel.CountAsync();
+        var sort = NormalizeSort(sortBy);
 
-        IOrderedQueryable<Comment> ordered = (sortBy.ToLowerInvariant(), desc) switch
+        if (page > MaxCachedPage)
         {
-            ("username", true) => topLevel.OrderByDescending(c => c.User.UserName),
-            ("username", false) => topLevel.OrderBy(c => c.User.UserName),
-            ("email", true) => topLevel.OrderByDescending(c => c.User.Email),
-            ("email", false) => topLevel.OrderBy(c => c.User.Email),
-            (_, false) => topLevel.OrderBy(c => c.CreatedAt),
-            _ => topLevel.OrderByDescending(c => c.CreatedAt)
-        };
-        ordered = ordered.ThenBy(c => c.Id);
-
-        var items = await ordered
-            .Skip((page - 1) * PageSize)
-            .Take(PageSize)
-            .Select(ToDto)
-            .ToListAsync();
-
-        var byId = items.ToDictionary(c => c.Id);
-        var currentIds = items.Select(c => c.Id).ToList();
-
-        while (currentIds.Count > 0)
-        {
-            var replies = await _db.Comments.AsNoTracking()
-                .Where(c => c.ParentId != null && currentIds.Contains(c.ParentId.Value))
-                .OrderBy(c => c.CreatedAt)
-                .Select(ToDto)
-                .ToListAsync();
-
-            foreach (var reply in replies)
-            {
-                byId[reply.Id] = reply;
-                byId[reply.ParentId!.Value].Replies.Add(reply);
-            }
-
-            currentIds = replies.Select(r => r.Id).ToList();
+            return Ok(await LoadListAsync(page, sort, desc));
         }
 
-        return Ok(new PagedResult<CommentDto>
-        {
-            Items = items,
-            Page = page,
-            PageSize = PageSize,
-            TotalCount = totalCount,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize)
-        });
+        var result = await _cache.GetOrCreateAsync(
+            $"list:{page}:{sort}:{desc}",
+            () => LoadListAsync(page, sort, desc));
+
+        return Ok(result);
     }
 
     [HttpPost]
@@ -219,5 +187,63 @@ public class CommentsController : ControllerBase
         await _events.PublishAsync(new CommentCreatedEvent(comment.Id, comment.ParentId), cancellationToken);
 
         return Ok(new { id = comment.Id });
+    }
+
+    private static string NormalizeSort(string sortBy)
+    {
+        var value = sortBy.ToLowerInvariant();
+        return value is "username" or "email" ? value : "date";
+    }
+
+    private async Task<PagedResult<CommentDto>> LoadListAsync(int page, string sort, bool desc)
+    {
+        var topLevel = _db.Comments.AsNoTracking().Where(c => c.ParentId == null);
+        var totalCount = await topLevel.CountAsync();
+
+        IOrderedQueryable<Comment> ordered = (sort, desc) switch
+        {
+            ("username", true) => topLevel.OrderByDescending(c => c.User.UserName),
+            ("username", false) => topLevel.OrderBy(c => c.User.UserName),
+            ("email", true) => topLevel.OrderByDescending(c => c.User.Email),
+            ("email", false) => topLevel.OrderBy(c => c.User.Email),
+            (_, false) => topLevel.OrderBy(c => c.CreatedAt),
+            _ => topLevel.OrderByDescending(c => c.CreatedAt)
+        };
+        ordered = ordered.ThenBy(c => c.Id);
+
+        var items = await ordered
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .Select(ToDto)
+            .ToListAsync();
+
+        var byId = items.ToDictionary(c => c.Id);
+        var currentIds = items.Select(c => c.Id).ToList();
+
+        while (currentIds.Count > 0)
+        {
+            var replies = await _db.Comments.AsNoTracking()
+                .Where(c => c.ParentId != null && currentIds.Contains(c.ParentId.Value))
+                .OrderBy(c => c.CreatedAt)
+                .Select(ToDto)
+                .ToListAsync();
+
+            foreach (var reply in replies)
+            {
+                byId[reply.Id] = reply;
+                byId[reply.ParentId!.Value].Replies.Add(reply);
+            }
+
+            currentIds = replies.Select(r => r.Id).ToList();
+        }
+
+        return new PagedResult<CommentDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = PageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize)
+        };
     }
 }
