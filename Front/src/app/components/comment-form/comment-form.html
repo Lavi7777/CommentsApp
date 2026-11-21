@@ -1,7 +1,7 @@
 <form
   [formGroup]="form"
   (ngSubmit)="submit()"
-  class="rounded-xl border border-gray-300 bg-white p-5 shadow-sm"
+  class="rounded-xl border border-gray-300 bg-white p-4 shadow-sm sm:p-5"
 >
   <h2 class="mb-4 text-lg font-medium">{{ parentId() ? 'Reply' : 'Add a comment' }}</h2>
 
@@ -84,19 +84,19 @@
     }
   </div>
 
-  <div class="flex flex-wrap items-start gap-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
     <div class="flex items-center gap-2">
       @if (captchaImage()) {
         <img
           [src]="captchaImage()"
           alt="CAPTCHA"
-          class="h-[60px] w-[160px] rounded border border-gray-300"
+          class="h-[60px] w-[160px] shrink-0 rounded border border-gray-300"
         />
       }
       <button mat-stroked-button type="button" (click)="loadCaptcha()">Refresh</button>
     </div>
 
-    <mat-form-field appearance="outline" class="min-w-48 flex-1">
+    <mat-form-field appearance="outline" class="w-full sm:min-w-48 sm:flex-1">
       <mat-label>CAPTCHA</mat-label>
       <input matInput formControlName="captchaCode" maxlength="10" autocomplete="off" />
       <mat-error>Enter the characters from the image</mat-error>
@@ -107,7 +107,7 @@
     <p class="mb-3 text-red-600">{{ serverError() }}</p>
   }
 
-  <div class="flex justify-end gap-3">
+  <div class="mt-2 flex flex-wrap justify-end gap-3">
     <button
       mat-stroked-button
       type="button"

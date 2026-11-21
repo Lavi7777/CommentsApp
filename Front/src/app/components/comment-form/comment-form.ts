@@ -6,8 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { CommentsService } from '../../services/comments.service';
 import { TagToolbar } from '../../shared/components/tag-toolbar/tag-toolbar';
-import { allowedHtmlTagsValidator } from '../../shared/validators/allowed-html-tags.validator';
 import { FormatTag, wrapSelection } from '../../shared/utils/wrap-selection';
+import { allowedHtmlTagsValidator } from '../../shared/validators/allowed-html-tags.validator';
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif'];
 const MAX_TEXT_FILE_BYTES = 100 * 1024;
@@ -174,7 +174,7 @@ export class CommentForm {
       error: (error: HttpErrorResponse) => {
         this.submitting.set(false);
         this.serverError.set(this.extractError(error));
-        this.form.controls.captchaCode.reset();
+        this.formDirective()?.resetForm({ ...value, captchaCode: '' });
         this.loadCaptcha();
       },
     });
