@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+.app-toolbar {
+  --mat-toolbar-container-background-color: var(--mat-sys-primary, #1d4ed8);
+  --mat-toolbar-container-text-color: var(--mat-sys-on-primary, #ffffff);
+}
+
 .comment-text a {
   color: #1d4ed8;
   text-decoration: underline;
