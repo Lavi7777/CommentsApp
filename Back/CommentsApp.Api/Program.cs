@@ -5,6 +5,7 @@ using CommentsApp.Domain.Abstractions;
 using CommentsApp.Domain.Events;
 using CommentsApp.Infrastructure.Data;
 using CommentsApp.Infrastructure.Events;
+using CommentsApp.Infrastructure.Handlers;
 using CommentsApp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -23,8 +24,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICommentTextSanitizer, CommentTextSanitizer>();
 builder.Services.AddSingleton<ICaptchaService, CaptchaService>();
+builder.Services.AddSingleton<ICommentsCache, CommentsCache>();
 
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
+builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedCacheInvalidationHandler>();
 builder.Services.AddScoped<IDomainEventHandler<CommentCreatedEvent>, CommentCreatedBroadcastHandler>();
 
 var uploadsPath = Path.GetFullPath(
