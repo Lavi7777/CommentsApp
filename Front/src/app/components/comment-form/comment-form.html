@@ -37,11 +37,36 @@
     <mat-error>Enter a valid URL starting with http:// or https://</mat-error>
   </mat-form-field>
 
+  <app-tag-toolbar (tagSelected)="insertTag($event)" />
+
   <mat-form-field appearance="outline" class="w-full">
     <mat-label>Text</mat-label>
-    <textarea matInput formControlName="text" rows="5" maxlength="5000"></textarea>
-    <mat-error>Text is required</mat-error>
+    <textarea
+      #textArea
+      matInput
+      formControlName="text"
+      rows="5"
+      maxlength="5000"
+    ></textarea>
+    <mat-error>
+      @if (form.controls.text.hasError('required')) {
+        Text is required
+      } @else {
+        {{ form.controls.text.errors?.['htmlTags'] }}
+      }
+    </mat-error>
   </mat-form-field>
+
+  @if (previewHtml() !== null) {
+    <div class="mb-4 rounded border border-dashed border-gray-400 p-3">
+      <p class="mb-1 text-xs text-gray-500">Preview</p>
+      <div class="comment-text break-words whitespace-pre-line" [innerHTML]="previewHtml()"></div>
+    </div>
+  }
+
+  @if (previewError()) {
+    <p class="mb-3 text-red-600">{{ previewError() }}</p>
+  }
 
   <div class="mb-4">
     <input
@@ -82,5 +107,15 @@
     <p class="mb-3 text-red-600">{{ serverError() }}</p>
   }
 
-  <button mat-flat-button type="submit" [disabled]="submitting()">Send</button>
+  <div class="flex gap-3">
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="previewing() || !form.controls.text.value.trim()"
+      (click)="preview()"
+    >
+      Preview
+    </button>
+    <button mat-flat-button type="submit" [disabled]="submitting()">Send</button>
+  </div>
 </form>

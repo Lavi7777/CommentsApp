@@ -1,17 +1,20 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { CommentsService } from '../../services/comments.service';
+import { TagToolbar } from '../../shared/components/tag-toolbar/tag-toolbar';
+import { allowedHtmlTagsValidator } from '../../shared/validators/allowed-html-tags.validator';
+import { FormatTag, wrapSelection } from '../../shared/utils/wrap-selection';
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif'];
 const MAX_TEXT_FILE_BYTES = 100 * 1024;
 
 @Component({
   selector: 'app-comment-form',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, TagToolbar],
   templateUrl: './comment-form.html',
   host: { class: 'block' },
 })
@@ -19,6 +22,8 @@ export class CommentForm {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(CommentsService);
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  private readonly textArea = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
+  private readonly formDirective = viewChild(FormGroupDirective);
 
   readonly parentId = input<string | null>(null);
   readonly created = output<void>();
@@ -27,6 +32,9 @@ export class CommentForm {
   protected readonly submitting = signal(false);
   protected readonly serverError = signal<string | null>(null);
   protected readonly fileError = signal<string | null>(null);
+  protected readonly previewHtml = signal<string | null>(null);
+  protected readonly previewError = signal<string | null>(null);
+  protected readonly previewing = signal(false);
 
   private captchaId = '';
   private selectedFile: File | null = null;
@@ -38,7 +46,7 @@ export class CommentForm {
     ],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
     homePage: ['', [Validators.pattern(/^https?:\/\/\S+$/), Validators.maxLength(2048)]],
-    text: ['', [Validators.required, Validators.maxLength(5000)]],
+    text: ['', [Validators.required, Validators.maxLength(5000), allowedHtmlTagsValidator()]],
     captchaCode: [
       '',
       [Validators.required, Validators.maxLength(10), Validators.pattern(/^[a-zA-Z0-9]+$/)],
@@ -56,6 +64,46 @@ export class CommentForm {
         this.captchaImage.set(captcha.image);
       },
       error: () => this.serverError.set('Failed to load CAPTCHA.'),
+    });
+  }
+
+  protected insertTag(tag: FormatTag): void {
+    const element = this.textArea()?.nativeElement;
+    if (!element) {
+      return;
+    }
+
+    const result = wrapSelection(
+      this.form.controls.text.value,
+      element.selectionStart,
+      element.selectionEnd,
+      tag,
+    );
+
+    this.form.controls.text.setValue(result.value);
+    element.focus();
+    element.setSelectionRange(result.selectionStart, result.selectionEnd);
+  }
+
+  protected preview(): void {
+    const text = this.form.controls.text.value;
+    if (!text.trim()) {
+      return;
+    }
+
+    this.previewing.set(true);
+    this.previewError.set(null);
+
+    this.service.preview(text).subscribe({
+      next: (result) => {
+        this.previewing.set(false);
+        this.previewHtml.set(result.html);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.previewing.set(false);
+        this.previewHtml.set(null);
+        this.previewError.set(this.extractError(error));
+      },
     });
   }
 
@@ -116,8 +164,9 @@ export class CommentForm {
     this.service.create(data).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.form.controls.text.reset();
-        this.form.controls.captchaCode.reset();
+        this.formDirective()?.resetForm({ ...value, text: '', captchaCode: '' });
+        this.previewHtml.set(null);
+        this.previewError.set(null);
         this.clearFile();
         this.loadCaptcha();
         this.created.emit();

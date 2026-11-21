@@ -1,0 +1,5 @@
+<div class="mb-2 flex flex-wrap gap-2">
+  @for (tag of tags; track tag) {
+    <button mat-stroked-button type="button" (click)="select(tag)">[{{ tag }}]</button>
+  }
+</div>
