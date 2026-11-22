@@ -2,28 +2,63 @@ services:
   postgres:
     image: postgres:17
     container_name: comments-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: commentsdb
       POSTGRES_USER: comments_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comments_user -d commentsdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: comments-pgadmin
+    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-dudindeni@gmail.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./Back
+    container_name: comments-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=commentsdb;Username=comments_user;Password=${POSTGRES_PASSWORD}
+      Uploads__Path: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./Front
+    container_name: comments-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
 
 volumes:
   pgdata:
   pgadmin-data:
+  uploads:

@@ -43,13 +43,15 @@ builder.Services.AddSingleton<IAttachmentStorage>(_ => new AttachmentStorage(upl
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-}
-else
-{
-    app.UseHttpsRedirection();
 }
 
 app.UseStaticFiles(new StaticFileOptions
